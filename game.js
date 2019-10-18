@@ -592,6 +592,8 @@ var DirectionSolver = function (board) {
 
                 let reloading = turn === 0 ? false : (turn - lastFire) <= 3;
 
+                console.log('bullet: ', turn - lastFire, reloading);
+
 
                 function getTargetDirection(t) {
                     var x = t.getX() - tank.getX();
@@ -793,13 +795,14 @@ var DirectionSolver = function (board) {
                             console.log('MOVING TO SAFE');
                             lastStepCounter = 0;
                             return safer[0];
+                        } else {
+                            console.log('NO SAFE POSITION')
                         }
 
-                        // myBullet = getMyDirection(board);
-                        // return 'act';
                         if (board.getAt(target.direction.inverted().changeX(mx), target.direction.inverted().changeY(my)) === Elements.NONE) {
                             console.log('Reverse engine!');
-                            // return target.direction.inverted().toString();
+                            lastStepCounter = 0;
+                            return target.direction.inverted().toString();
                         }
 
                         console.log('NO RETREAT! - KAMIKAZE!');
@@ -812,10 +815,10 @@ var DirectionSolver = function (board) {
 
                 console.log('--- no target selected ---');
 
-                if (!reloading) {
-                    console.log('looking for prefire');
-                    const distance = 2;
-                }
+                // if (!reloading) {
+                //     console.log('looking for prefire');
+                //     const distance = 2;
+                // }
 
                 /*target = _.chain(targets)
                     .filter(a => a.player)
@@ -854,9 +857,9 @@ var DirectionSolver = function (board) {
                     }
 
                     if(lastStepCounter > 3 && !reloading) {
-                        console.log('stucket at enemy', lastStepCounter, lastOneStep, oneStepTarget.oneStepDirection);
+                        console.log('cyclic moves', lastStepCounter, lastOneStep, oneStepTarget.oneStepDirection);
                         console.log('!!!FIRE!!!');
-                        return getDirection(oneStepTarget.oneStepDirection.changeX(tank.getX()), oneStepTarget.oneStepDirection.changeY(tank.getY()), oneStepTarget.x, oneStepTarget.y) + ',act';
+                        return getDirection(oneStepTarget.x, oneStepTarget.y, oneStepTarget.oneStepDirection.changeX(tank.getX()), oneStepTarget.oneStepDirection.changeY(tank.getY())) + ',act';
                     }
 
                     lastOneStep = oneStepTarget.oneStepDirection;
