@@ -600,7 +600,7 @@ var DirectionSolver = function (board) {
                     var y = t.getY() - tank.getY();
                     if (x === 0) {
                         return y > 0 ? Direction.UP : Direction.DOWN;
-                    } else if(y === 0) {
+                    } else if (y === 0) {
                         return x > 0 ? Direction.RIGHT : Direction.LEFT;
                     } else {
                         return Direction.STOP;
@@ -665,27 +665,15 @@ var DirectionSolver = function (board) {
                     return result;
                 }
 
-                const danger = getBulletsNear();
-
-                if (danger.length) {
-                    console.log('danger from: ', danger.map(d => d.toString()), 'empty', getFreePlaces().map(d => d.toString()));
-                    const safer = getFreePlaces()
-                        .filter(p => danger.indexOf(p) === -1)
-                        .filter(p => danger.indexOf(p.inverted()) === -1);
-
-                    if (safer.length) {
-                        // move to safe place
-                        console.log(' move to safe place: ', safer[0].toString());
-                        lastStepCounter = 0;
-                        return safer[0];
-                    } else {
-                        // we are dead...
-                        console.log('danger - no move options we are dead in next round???');
-                        if (!reloading) {
-                            console.log('FIRE AT LAST CHANCE');
-                            lastStepCounter = 0;
-                            return Direction.ACT;
-                        }
+                function isPlayer(x, y) {
+                    switch (board.getAt(x, y)) {
+                        case Elements.OTHER_TANK_DOWN:
+                        case Elements.OTHER_TANK_UP:
+                        case Elements.OTHER_TANK_LEFT:
+                        case Elements.OTHER_TANK_RIGHT:
+                            return true;
+                        default:
+                            return false;
                     }
                 }
 
@@ -701,25 +689,33 @@ var DirectionSolver = function (board) {
                 const possibleSteps = safe.filter(s => unsafe.indexOf(s) === -1 && bullets.indexOf(s) === -1);
                 console.log('possibleSteps:', possibleSteps.map(s => s.toString()));
 
-                function isPlayer(x, y) {
-                    switch (board.getAt(x, y)) {
-                        case Elements.OTHER_TANK_DOWN:
-                        case Elements.OTHER_TANK_UP:
-                        case Elements.OTHER_TANK_LEFT:
-                        case Elements.OTHER_TANK_RIGHT:
-                            return true;
-                        default:
-                            return false;
+                if (bullets.length) {
+                    console.log('danger from: ', bullets.map(d => d.toString()));
+                    const safer = possibleSteps
+                        .filter(p => bullets.indexOf(p) === -1)
+                        .filter(p => bullets.indexOf(p.inverted()) === -1);
+
+                    if (safer.length) {
+                        // move to safe place
+                        console.log(' move to safe place: ', safer[0].toString());
+                        lastStepCounter = 0;
+                        return safer[0];
+                    } else  if (possibleSteps.length) {
+                        lastStepCounter = 0;
+                        console.log(' move to possible place: ', possibleSteps[0].toString());
+                        return possibleSteps[0];
+                    } else  {
+                        console.log('danger - no move options we are dead in next round???');
+                        if (!reloading) {
+                            console.log('FIRE AT LAST CHANCE');
+                            lastStepCounter = 0;
+                            return Direction.ACT;
+                        }
                     }
                 }
 
-
                 console.log('getting enemies');
                 const em = board.getEnemies(false); //true);
-
-                let target;
-
-                console.log('mapping enemies');
                 let targets = _.chain(em)
                     .map(t => ({
                         x: t.getX(),
@@ -734,7 +730,6 @@ var DirectionSolver = function (board) {
                         // isWallInWay: isWallInWay(t),
                         // path: findPath(tank, t, board),
                         // pathOverWall: findPath(tank, t, board, true)
-
                         turetDirection: getEnemyDirection(t.getX(), t.getY(), board),
                         movingDirection: getTargetMovingDirection(t.getX(), t.getY(), lastMap)
                     }))
@@ -742,6 +737,7 @@ var DirectionSolver = function (board) {
                     .value();
 
                 console.log('looking for target');
+                let target;
                 target = _.chain(targets)
                     .filter(e => e.inSight)
                     .filter(e => e.direction === board.getMyDirection())
@@ -758,7 +754,6 @@ var DirectionSolver = function (board) {
                         .filter(e => e.isShotClear)
                         .first()
                         .value();
-
                     if (target) {
                         console.log('target found - need to turn');
                     }
@@ -799,15 +794,15 @@ var DirectionSolver = function (board) {
                             console.log('NO SAFE POSITION')
                         }
 
-                        if (board.getAt(target.direction.inverted().changeX(mx), target.direction.inverted().changeY(my)) === Elements.NONE) {
+                        if (board.getAt(target.direction.inverted().changeX(tank.getX()), target.direction.inverted().changeY(tank.getY())) === Elements.NONE) {
                             console.log('Reverse engine!');
                             lastStepCounter = 0;
-                            return target.direction.inverted().toString();
+                            return target.direction.inverted();
                         }
 
                         console.log('NO RETREAT! - KAMIKAZE!');
                         lastStepCounter = 0;
-                        return target.direction.toString();
+                        return target.direction;
 
                     }
                 }
@@ -830,17 +825,17 @@ var DirectionSolver = function (board) {
 
                 const oneStepTargets = targets
                     .filter(t => {
-                         return isShotClear(t.x, t.y, tank.getX()+1, tank.getY()) || isShotClear(t.x, t.y, tank.getX()-1, tank.getY())
-                             || isShotClear(t.x, t.y, tank.getX(), tank.getY() +1) || isShotClear(t.x, t.y, tank.getX(), tank.getY() -1) ;
-                }).map(t => {
-                    if(t.x === tank.getX() + 1) t.oneStepDirection = Direction.RIGHT;
-                    if(t.x === tank.getX() - 1) t.oneStepDirection = Direction.LEFT;
-                    if(t.y === tank.getY() + 1) t.oneStepDirection = Direction.UP;
-                    if(t.y === tank.getY() - 1) t.oneStepDirection = Direction.DOWN;
+                        return isShotClear(t.x, t.y, tank.getX() + 1, tank.getY()) || isShotClear(t.x, t.y, tank.getX() - 1, tank.getY())
+                            || isShotClear(t.x, t.y, tank.getX(), tank.getY() + 1) || isShotClear(t.x, t.y, tank.getX(), tank.getY() - 1);
+                    }).map(t => {
+                        if (t.x === tank.getX() + 1) t.oneStepDirection = Direction.RIGHT;
+                        if (t.x === tank.getX() - 1) t.oneStepDirection = Direction.LEFT;
+                        if (t.y === tank.getY() + 1) t.oneStepDirection = Direction.UP;
+                        if (t.y === tank.getY() - 1) t.oneStepDirection = Direction.DOWN;
 
-                    t.path = findPath(tank, t.tank, board);
-                    return t;
-                })
+                        t.path = findPath(tank, t.tank, board);
+                        return t;
+                    })
                     .filter(t => possibleSteps.indexOf(t.oneStepDirection) > -1)
                     .filter(t => t.path.length > 0);
 
@@ -849,14 +844,14 @@ var DirectionSolver = function (board) {
                     console.log('found one step target', _.pick(oneStepTarget, ['x', 'y']), oneStepTarget.path.length, oneStepTarget.direction.toString());
 
                     if (lastOneStep) {
-                       if(lastOneStep.inverted() === oneStepTarget.oneStepDirection) {
-                           lastStepCounter++;
-                       } else {
-                           lastStepCounter = 0;
-                       }
+                        if (lastOneStep.inverted() === oneStepTarget.oneStepDirection) {
+                            lastStepCounter++;
+                        } else {
+                            lastStepCounter = 0;
+                        }
                     }
 
-                    if(lastStepCounter > 3 && !reloading) {
+                    if (lastStepCounter > 3 && !reloading) {
                         console.log('cyclic moves', lastStepCounter, lastOneStep, oneStepTarget.oneStepDirection);
                         console.log('!!!FIRE!!!');
                         return getDirection(oneStepTarget.x, oneStepTarget.y, oneStepTarget.oneStepDirection.changeX(tank.getX()), oneStepTarget.oneStepDirection.changeY(tank.getY())) + ',act';
@@ -910,17 +905,37 @@ var DirectionSolver = function (board) {
 
                 console.log('--- still no target selected ---');
 
-                const path = findPath(tank, {getX: () => 1, getY: () => 1}, board, true);
-                let newx = path[1][0];
-                let newy = path[1][1];
-                let direction = getDirection(newx, newy, tank.getX(), tank.getY());
 
-                if (reloading) {
-                    return direction;
-                } else {
-                    myBullet = board.getMyDirection();
-                    lastFire = turn;
-                    return 'act';
+                let path = targets[0] ? findPath(tank, targets[0].tank, board, true) : [];
+
+                if (!path.length) {
+                    path = findPath(tank, {getX: () => 1, getY: () => 1}, board, true);
+                }
+                if (!path.length) {
+                    path = findPath(tank, {
+                        getX: () => Math.floor(board.size() / 2),
+                        getY: () => Math.floor(board.size() / 2)
+                    }, board, true);
+                }
+                if (!path.length) {
+                    path = findPath(tank, {
+                        getX: () => Math.floor((Math.random() * (board.size() - 2))) - 1,
+                        getY: () => Math.floor((Math.random() * (board.size() - 2))) - 1
+                    }, board, true);
+                }
+                if (path.length) {
+
+                    let newx = path[1][0];
+                    let newy = path[1][1];
+                    let direction = getDirection(newx, newy, tank.getX(), tank.getY());
+
+                    if (reloading) {
+                        return direction;
+                    } else {
+                        myBullet = board.getMyDirection();
+                        lastFire = turn;
+                        return 'act';
+                    }
                 }
 
                 console.log('do some random shit');
